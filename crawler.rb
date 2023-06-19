@@ -3,9 +3,10 @@ require 'net/http'
 require 'nokogiri'
 require 'optparse'
 
-def links_from_html(html)
-  doc = Nokogiri::HTML html
-  (doc.xpath '//a').map {|link| href = link['href']}
+def links_from_doc(doc)
+  (doc.xpath '//a')                     # We catch all anchors,
+    .map {|link| href = link['href']}   # extract all hrefs from it and then
+    .filter {|str| str}                 # remove empty links.
 end
 
 parser = OptionParser.new
@@ -28,17 +29,20 @@ while unvisited.length > 0
   visited.push uri
 
   html = Net::HTTP.get uri
+  doc  = Nokogiri::HTML5 html, uri
 
-  (links_from_html html).each do |link|
-    next if not link.start_with? '/'   # Skip non-root based links for now.
-
+  (links_from_doc doc).each do |link|
     new_uri = URI link
 
-    if not new_uri.kind_of? URI::HTTP
-      new_uri = URI uri.origin + link
+    if new_uri.scheme == nil
+      new_uri = (URI uri.origin).merge link
     end
 
-    if not (visited + unvisited).include? new_uri
+    ## We skip non-HTTP protocols.
+    next unless ['http', 'https'].include? new_uri.scheme
+
+    ## If we haven't seen the link yet, we save it to crawl later.
+    unless (visited + unvisited).include? new_uri
       unvisited.push new_uri
     end
   end
