@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
-require 'net/http'
+require 'open-uri'
 require 'optparse'
+
 require 'nokogiri'
 
 def links_from_doc(doc)
@@ -8,6 +9,9 @@ def links_from_doc(doc)
     .map {|link| link['href']}          # extract all hrefs from it and then
     .filter {|str| str}                 # remove empty links.
 end
+
+DATA_DIR = 'crawled'
+Dir.mkdir DATA_DIR unless File.exists? DATA_DIR
 
 parser = OptionParser.new
 
@@ -22,14 +26,20 @@ unvisited = args.map {|src| URI src}
 visited   = []
 
 while unvisited.length > 0
-  uri = unvisited.pop
-
-  puts "Visiting #{uri}"
+  uri        = unvisited.pop
+  local_file = "#{DATA_DIR}/#{File.basename uri.to_s}.html"
 
   visited.push uri
 
-  html = Net::HTTP.get uri
+  next if File.exists? local_file       # Skip things we have already seen.
+
+  puts "Visiting #{uri}"
+
+  html = uri.open 'User-Agent' => "Ruby/#{RUBY_VERSION}"
   doc  = Nokogiri::HTML5 html, uri
+
+  File.open(local_file, 'w') {|file| file.write html}
+  puts "Saved: #{local_file}"
 
   (links_from_doc doc).each do |link|
     new_uri = URI link
@@ -46,4 +56,6 @@ while unvisited.length > 0
       unvisited.push new_uri
     end
   end
+
+  sleep 1                               # We avoid making too many requests.
 end
