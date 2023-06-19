@@ -1,11 +1,11 @@
 #!/usr/bin/env ruby
 require 'net/http'
-require 'nokogiri'
 require 'optparse'
+require 'nokogiri'
 
 def links_from_doc(doc)
   (doc.xpath '//a')                     # We catch all anchors,
-    .map {|link| href = link['href']}   # extract all hrefs from it and then
+    .map {|link| link['href']}          # extract all hrefs from it and then
     .filter {|str| str}                 # remove empty links.
 end
 
